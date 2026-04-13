@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔬 Pipeline Walkthrough · Exoplanet Personality Profiler</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Variables (same as main dashboard) ─── */
+:root {
+  --void:    #00000a;
+  --deep:    #030318;
+  --nebula:  #0a0a2e;
+  --cosmic:  #0d0d3d;
+  --pulsar:  #00f5ff;
+  --nova:    #ff6b35;
+  --hab:     #39ff14;
+  --star:    #ffd700;
+  --dwarf:   #ff4466;
+  --neutral: #8899cc;
+  --glow-pulse: 0 0 20px rgba(0,245,255,0.4), 0 0 40px rgba(0,245,255,0.15);
+  --glow-nova:  0 0 20px rgba(255,107,53,0.5), 0 0 40px rgba(255,107,53,0.2);
+  --glow-hab:   0 0 15px rgba(57,255,20,0.4);
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--void);
+  color: #c8d8f0;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+#starfield { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+/* ── Nav tabs ───── */
+.tab-nav {
+  position: relative; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  gap: 0;
+  padding: 20px 24px 0;
+  max-width: 1400px; margin: 0 auto;
+}
+.tab-link {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+  text-decoration: none;
+  padding: 10px 28px;
+  border: 1px solid rgba(0,245,255,0.2);
+  color: var(--neutral);
+  background: rgba(3,3,24,0.6);
+  transition: all 0.3s;
+  cursor: pointer;
+}
+.tab-link:first-child { border-radius: 8px 0 0 8px; }
+.tab-link:last-child  { border-radius: 0 8px 8px 0; }
+.tab-link:hover { color: var(--pulsar); border-color: rgba(0,245,255,0.5); background: rgba(0,245,255,0.07); }
+.tab-link.active {
+  color: var(--void); background: var(--pulsar);
+  border-color: var(--pulsar);
+  box-shadow: var(--glow-pulse);
+  font-weight: 700;
+}
+
+/* ── Page wrap ───── */
+.page-wrap { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 24px 100px; }
+
+/* ── Header ───── */
+header { text-align: center; padding: 50px 20px 36px; position: relative; }
+.header-badge {
+  display: inline-block; font-family: 'Space Mono', monospace;
+  font-size: 11px; letter-spacing: 4px; color: var(--pulsar);
+  border: 1px solid rgba(0,245,255,0.3); padding: 6px 18px;
+  margin-bottom: 20px; text-transform: uppercase; animation: fadeIn 1s ease;
+}
+h1 {
+  font-family: 'Orbitron', monospace; font-size: clamp(22px, 4vw, 52px); font-weight: 900;
+  background: linear-gradient(135deg, var(--pulsar) 0%, #8b5cf6 40%, var(--nova) 80%, var(--star) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  line-height: 1.15; margin-bottom: 14px; animation: slideUp 0.8s ease;
+}
+.subtitle { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--neutral); letter-spacing: 1px; }
+
+/* ── Section header ───── */
+.section-header {
+  display: flex; align-items: center; gap: 14px; margin: 52px 0 28px;
+}
+.section-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,245,255,0.3)); }
+.section-line.right { background: linear-gradient(90deg, rgba(0,245,255,0.3), transparent); }
+.section-title { font-family: 'Orbitron', monospace; font-size: 13px; letter-spacing: 3px; color: var(--pulsar); white-space: nowrap; text-transform: uppercase; }
+
+/* ── Pipeline flow ───── */
+.pipeline-flow {
+  display: flex; flex-direction: column; gap: 0;
+  position: relative;
+}
+.pipeline-connector {
+  display: flex; justify-content: center; align-items: center;
+  height: 56px; position: relative; z-index: 1;
+}
+.connector-line {
+  width: 2px; height: 100%;
+  background: linear-gradient(180deg, rgba(0,245,255,0.6), rgba(139,92,246,0.6));
+  position: relative;
+}
+.connector-arrow {
+  position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 8px solid rgba(0,245,255,0.8);
+  filter: drop-shadow(0 0 4px rgba(0,245,255,0.6));
+}
+.connector-label {
+  position: absolute; left: calc(50% + 18px);
+  font-family: 'Space Mono', monospace; font-size: 10px; color: rgba(0,245,255,0.5);
+  letter-spacing: 2px; text-transform: uppercase; white-space: nowrap;
+  top: 50%; transform: translateY(-50%);
+}
+
+/* ── Step card ───── */
+.step-card {
+  display: grid; grid-template-columns: 72px 1fr;
+  gap: 0; border-radius: var(--radius-lg); overflow: hidden;
+  border: 1px solid rgba(0,245,255,0.12);
+  background: linear-gradient(135deg, rgba(13,13,61,0.85), rgba(3,3,24,0.95));
+  transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+  animation: slideIn 0.7s ease both;
+  position: relative;
+}
+.step-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0,245,255,0.35);
+  box-shadow: var(--glow-pulse);
+}
+.step-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--step-color, var(--pulsar)), transparent);
+}
+.step-number {
+  background: rgba(0,245,255,0.06);
+  border-right: 1px solid rgba(0,245,255,0.1);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  padding: 24px 8px;
+}
+.step-num-label {
+  font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 900;
+  color: var(--step-color, var(--pulsar));
+  text-shadow: 0 0 15px var(--step-color, rgba(0,245,255,0.7));
+}
+.step-icon { font-size: 22px; }
+.step-file {
+  font-family: 'Space Mono', monospace; font-size: 9px; color: rgba(136,153,204,0.5);
+  letter-spacing: 1px; text-align: center; writing-mode: horizontal-tb;
+  margin-top: 4px; word-break: break-all; padding: 0 4px;
+}
+
+.step-body { padding: 28px 32px; }
+.step-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.step-title {
+  font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700;
+  color: var(--step-color, var(--pulsar));
+}
+.step-badge {
+  font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px;
+  padding: 3px 10px; border-radius: 20px; text-transform: uppercase;
+  background: rgba(0,245,255,0.08); color: var(--step-color, var(--pulsar));
+  border: 1px solid rgba(0,245,255,0.2);
+}
+.step-desc { color: #a0b4d0; font-size: 15px; line-height: 1.65; margin-bottom: 18px; }
+
+/* ── Code block ───── */
+.code-block {
+  background: rgba(0,0,10,0.7); border: 1px solid rgba(0,245,255,0.1);
+  border-radius: var(--radius-sm); padding: 16px 20px;
+  font-family: 'Space Mono', monospace; font-size: 11.5px; line-height: 1.75;
+  overflow-x: auto; margin-bottom: 16px; position: relative;
+  white-space: pre;
+}
+.code-block::before {
+  content: attr(data-label);
+  position: absolute; top: 8px; right: 12px;
+  font-size: 10px; color: rgba(0,245,255,0.35); letter-spacing: 2px; text-transform: uppercase;
+}
+.c-kw  { color: #c792ea; }
+.c-fn  { color: #82aaff; }
+.c-str { color: #c3e88d; }
+.c-cmt { color: #546e7a; font-style: italic; }
+.c-num { color: var(--nova); }
+.c-cls { color: var(--star); }
+
+/* ── Pills row ───── */
+.pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.pill {
+  font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 1.5px;
+  padding: 4px 12px; border-radius: 20px; text-transform: uppercase;
+  border: 1px solid; transition: box-shadow 0.2s;
+}
+.pill-cyan  { color: var(--pulsar); border-color: rgba(0,245,255,0.35); background: rgba(0,245,255,0.07); }
+.pill-orange{ color: var(--nova);   border-color: rgba(255,107,53,0.35); background: rgba(255,107,53,0.07); }
+.pill-green { color: var(--hab);    border-color: rgba(57,255,20,0.35);  background: rgba(57,255,20,0.07); }
+.pill-gold  { color: var(--star);   border-color: rgba(255,215,0,0.35);  background: rgba(255,215,0,0.07); }
+.pill-purple{ color: #c084fc;       border-color: rgba(192,132,252,0.35);background: rgba(192,132,252,0.07);}
+.pill-red   { color: var(--dwarf);  border-color: rgba(255,68,102,0.35); background: rgba(255,68,102,0.07); }
+
+/* ── Output sample ───── */
+.output-sample {
+  border-left: 3px solid var(--step-color, var(--pulsar));
+  padding: 14px 16px; background: rgba(0,245,255,0.04);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-family: 'Space Mono', monospace; font-size: 11px; line-height: 1.8;
+  color: #c8d8f0; margin-top: 14px;
+}
+.output-label {
+  font-size: 10px; color: rgba(136,153,204,0.5); letter-spacing: 2px;
+  text-transform: uppercase; margin-bottom: 6px;
+}
+.output-highlight { color: var(--pulsar); font-weight: 700; }
+
+/* ── Stats row ───── */
+.step-stats { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.step-stat {
+  background: rgba(0,245,255,0.05); border: 1px solid rgba(0,245,255,0.1);
+  border-radius: var(--radius-sm); padding: 10px 16px; flex: 1; min-width: 120px;
+  text-align: center;
+}
+.step-stat-val { font-family: 'Orbitron', monospace; font-size: 18px; color: var(--step-color, var(--pulsar)); display: block; }
+.step-stat-lbl { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--neutral); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 3px; }
+
+/* ── Data flow diagram ───── */
+.flow-diagram {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px; margin-top: 16px;
+}
+.flow-node {
+  background: rgba(0,0,10,0.5); border: 1px solid rgba(0,245,255,0.15);
+  border-radius: var(--radius-sm); padding: 14px 12px; text-align: center;
+  position: relative;
+}
+.flow-node-icon { font-size: 24px; margin-bottom: 6px; }
+.flow-node-title { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--pulsar); letter-spacing: 1px; }
+.flow-node-val { font-size: 12px; color: var(--neutral); margin-top: 3px; }
+
+/* ── Architecture overview ───── */
+.arch-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px; margin-bottom: 32px;
+}
+.arch-card {
+  background: linear-gradient(135deg, rgba(13,13,61,0.7), rgba(3,3,24,0.9));
+  border: 1px solid rgba(0,245,255,0.12); border-radius: var(--radius-md);
+  padding: 22px 22px 18px; transition: transform 0.3s, box-shadow 0.3s;
+  position: relative; overflow: hidden;
+}
+.arch-card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,245,255,0.1); }
+.arch-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-color, var(--pulsar)), transparent);
+}
+.arch-card-title { font-family: 'Orbitron', monospace; font-size: 13px; color: var(--accent-color, var(--pulsar)); margin-bottom: 10px; }
+.arch-card-desc { font-size: 14px; color: #9db0cc; line-height: 1.6; }
+
+/* ── Insight callout ───── */
+.insight-callout {
+  background: rgba(57,255,20,0.05); border: 1px solid rgba(57,255,20,0.25);
+  border-radius: var(--radius-md); padding: 18px 22px; margin-top: 20px;
+  display: flex; gap: 14px; align-items: flex-start;
+}
+.insight-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+.insight-text { font-size: 14px; color: #b0d0b0; line-height: 1.65; }
+.insight-text strong { color: var(--hab); }
+
+/* ── Animations ───── */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(0,245,255,0.2); }
+  50%       { box-shadow: 0 0 20px rgba(0,245,255,0.5), 0 0 40px rgba(0,245,255,0.2); }
+}
+.step-card:nth-child(1) { animation-delay: 0.1s; }
+.step-card:nth-child(2) { animation-delay: 0.2s; }
+.step-card:nth-child(3) { animation-delay: 0.3s; }
+.step-card:nth-child(4) { animation-delay: 0.4s; }
+.step-card:nth-child(5) { animation-delay: 0.5s; }
+
+/* ── Footer ───── */
+footer {
+  text-align: center; padding: 28px; font-family: 'Space Mono', monospace;
+  font-size: 10px; color: rgba(136,153,204,0.4); letter-spacing: 3px;
+  position: relative; z-index: 1;
+  border-top: 1px solid rgba(0,245,255,0.07);
+}
+
+/* ── Responsive ───── */
+@media (max-width: 700px) {
+  .step-card { grid-template-columns: 56px 1fr; }
+  .step-body  { padding: 20px 18px; }
+  .hero-planet { display: none; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+
+<!-- Tab navigation -->
+<nav class="tab-nav">
+  <a href="index.html" class="tab-link">🪐 Dashboard</a>
+  <a href="pipeline.html" class="tab-link active">🔬 Pipeline</a>
+</nav>
+
+<div class="page-wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="header-badge">NLP Pipeline · 5 Processing Steps · Python + Chart.js</div>
+    <h1>Pipeline Walkthrough</h1>
+    <p class="subtitle">How raw NASA numbers become intelligent planet profiles</p>
+  </header>
+
+  <!-- Architecture Overview -->
+  <div class="section-header">
+    <div class="section-line"></div>
+    <div class="section-title">⚙️ Architecture Overview</div>
+    <div class="section-line right"></div>
+  </div>
+
+  <div class="arch-grid">
+    <div class="arch-card" style="--accent-color: var(--pulsar)">
+      <div class="arch-card-title">📥 Input</div>
+      <div class="arch-card-desc">NASA Exoplanet Archive CSV — <strong style="color:var(--pulsar)">4,367 rows</strong>, 18 columns of numerical orbital, physical, and stellar parameters</div>
+    </div>
+    <div class="arch-card" style="--accent-color: var(--nova)">
+      <div class="arch-card-title">⚙️ Processing</div>
+      <div class="arch-card-desc">5-step Python pipeline: data cleaning → text generation → VADER sentiment → habitability scoring → TF-IDF clustering</div>
+    </div>
+    <div class="arch-card" style="--accent-color: var(--hab)">
+      <div class="arch-card-title">📤 Output</div>
+      <div class="arch-card-desc"><strong style="color:var(--hab)">planet_data.json</strong> (aggregated dashboard stats) + <strong style="color:var(--hab)">planet_profiles.csv</strong> (enriched full dataset)</div>
+    </div>
+    <div class="arch-card" style="--accent-color: var(--star)">
+      <div class="arch-card-title">🖥️ Frontend</div>
+      <div class="arch-card-desc">Chart.js dashboard consuming the JSON — 9 visualisations, word clouds, live search across all 4,367 worlds</div>
+    </div>
+  </div>
+
+  <!-- Pipeline Steps -->
+  <div class="section-header">
+    <div class="section-line"></div>
+    <div class="section-title">🔁 Step-by-Step Pipeline</div>
+    <div class="section-line right"></div>
+  </div>
+
+  <div class="pipeline-flow">
+
+    <!-- ── STEP 1 ── -->
+    <div class="step-card" style="--step-color: #00f5ff;">
+      <div class="step-number">
+        <div class="step-num-label">01</div>
+        <div class="step-icon">📂</div>
+        <div class="step-file">data_cleaner.py</div>
+      </div>
+      <div class="step-body">
+        <div class="step-header">
+          <div class="step-title">Data Ingestion & Cleaning</div>
+          <span class="step-badge">Step 1</span>
+        </div>
+        <div class="step-desc">
+          The pipeline begins by loading the NASA Exoplanet Archive CSV. From ~50+ available columns, 
+          18 scientifically meaningful fields are selected — covering orbital mechanics, stellar properties, 
+          and discovery metadata. Missing numeric values are imputed using <em>per-discovery-method group medians</em> 
+          rather than global means, preserving the characteristic distributions of each detection technique 
+          (e.g. transit-detected planets have different orbital period profiles than radial-velocity ones).
+        </div>
+        <div class="pills">
+          <span class="pill pill-cyan">pandas read_csv</span>
+          <span class="pill pill-cyan">groupby median imputation</span>
+          <span class="pill pill-orange">18 columns selected</span>
+          <span class="pill pill-green">0 NaNs remaining</span>
+          <span class="pill pill-gold">10 numeric fields cleaned</span>
+        </div>
+        <div class="code-block" data-label="data_cleaner.py"><span class="c-cmt"># Fill missing numerics with group median (by discovery method)</span>
+<span class="c-fn">df</span>[<span class="c-str">NUM_COLS</span>] = <span class="c-fn">df</span>.<span class="c-fn">groupby</span>(<span class="c-str">"pl_discmethod"</span>)[<span class="c-str">NUM_COLS</span>].<span class="c-fn">transform</span>(
+    <span class="c-kw">lambda</span> x: x.<span class="c-fn">fillna</span>(x.<span class="c-fn">median</span>())
+)
+<span class="c-cmt"># Any remaining NaNs → global median</span>
+<span class="c-fn">df</span>[<span class="c-str">NUM_COLS</span>] = <span class="c-fn">df</span>[<span class="c-str">NUM_COLS</span>].<span class="c-fn">fillna</span>(<span class="c-fn">df</span>[<span class="c-str">NUM_COLS</span>].<span class="c-fn">median</span>())</div>
+        <div class="step-stats">
+          <div class="step-stat"><span class="step-stat-val">4,367</span><span class="step-stat-lbl">planets loaded</span></div>
+          <div class="step-stat"><span class="step-stat-val">18</span><span class="step-stat-lbl">columns kept</span></div>
+          <div class="step-stat"><span class="step-stat-val">10</span><span class="step-stat-lbl">discovery methods</span></div>
+          <div class="step-stat"><span class="step-stat-val">5</span><span class="step-stat-lbl">EDA plots saved</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pipeline-connector">
+      <div class="connector-line" style="background: linear-gradient(180deg, #00f5ff88, #8b5cf688)">
+        <div class="connector-arrow" style="border-top-color: #8b5cf6;"></div>
+      </div>
+      <div class="connector-label">DataFrame → text_generator</div>
+    </div>
+
+    <!-- ── STEP 2 ── -->
+    <div class="step-card" style="--step-color: #8b5cf6;">
+      <div class="step-number">
+        <div class="step-num-label">02</div>
+        <div class="step-icon">✍️</div>
+        <div class="step-file">text_generator.py</div>
+      </div>
+      <div class="step-body">
+        <div class="step-header">
+          <div class="step-title">Natural Language Generation</div>
+          <span class="step-badge">Step 2</span>
+        </div>
+        <div class="step-desc">
+          Each planet row is converted into a rich, human-readable paragraph using a deterministic 
+          template engine — no external LLM required. Three classification helpers first convert raw 
+          numerics into qualitative labels (orbit shape, mass category, star type), then a f-string 
+          template assembles a coherent paragraph. A habitable-zone hint is conditionally appended 
+          when orbital semi-major axis and stellar temperature both fall within Earth-like ranges.
+        </div>
+        <div class="pills">
+          <span class="pill pill-purple">template engine</span>
+          <span class="pill pill-cyan">orbit classification</span>
+          <span class="pill pill-orange">mass bucketing</span>
+          <span class="pill pill-gold">stellar typing</span>
+          <span class="pill pill-green">hab-zone detection</span>
+        </div>
+        <div class="code-block" data-label="text_generator.py"><span class="c-kw">def</span> <span class="c-fn">generate_description</span>(row) → str:
+  orbit_type = <span class="c-fn">_orbit_type</span>(row[<span class="c-str">"pl_orbeccen"</span>])   <span class="c-cmt"># circular / elliptical</span>
+  mass_d     = <span class="c-fn">_mass_desc</span>(row[<span class="c-str">"pl_bmassj"</span>])     <span class="c-cmt"># super-Earth / Jupiter…</span>
+  star_t     = <span class="c-fn">_star_type</span>(row[<span class="c-str">"st_teff"</span>])        <span class="c-cmt"># red dwarf / G-type…</span>
+  hab_hint   = <span class="c-str">"Notably, this planet orbits within the</span>
+               <span class="c-str"> estimated habitable zone…"</span>
+               <span class="c-kw">if</span> <span class="c-num">0.5</span> &lt;= orbsmax &lt;= <span class="c-num">1.5</span> <span class="c-kw">and</span> <span class="c-num">4500</span> &lt;= teff &lt;= <span class="c-num">6500</span> <span class="c-kw">else</span> <span class="c-str">""</span>
+  <span class="c-kw">return</span> <span class="c-fn">f</span><span class="c-str">"{name} is {mass_d} exoplanet discovered using {method}…"</span></div>
+        <div class="output-sample">
+          <div class="output-label">→ Sample generated description</div>
+          <span class="output-highlight">Kepler-87 c</span> is a super-Earth or Neptune-sized exoplanet discovered using the
+          Transit technique by the Kepler. It orbits its host star Kepler-87, which is a
+          Sun-like G-type star with a surface temperature of <span class="output-highlight">5600K</span>, located approximately
+          <span class="output-highlight">1247.3 parsecs</span> from Earth. The planet completes one orbit every <span class="output-highlight">192.0 days</span>
+          following a nearly circular path. <span class="output-highlight">Notably, this planet orbits within the estimated habitable zone of its star.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pipeline-connector">
+      <div class="connector-line" style="background: linear-gradient(180deg, #8b5cf688, #ff6b3588)">
+        <div class="connector-arrow" style="border-top-color: #ff6b35;"></div>
+      </div>
+      <div class="connector-label">description column → VADER</div>
+    </div>
+
+    <!-- ── STEP 3 ── -->
+    <div class="step-card" style="--step-color: #ff6b35;">
+      <div class="step-number">
+        <div class="step-num-label">03</div>
+        <div class="step-icon">📊</div>
+        <div class="step-file">nlp_pipeline.py</div>
+      </div>
+      <div class="step-body">
+        <div class="step-header">
+          <div class="step-title">VADER Sentiment Analysis</div>
+          <span class="step-badge">Step 3 · NLP</span>
+        </div>
+        <div class="step-desc">
+          A lightweight VADER-style lexicon is applied to each generated description to produce a 
+          compound sentiment score in <strong style="color:var(--nova)">[-1.0, +1.0]</strong>. The lexicon is tuned 
+          specifically to this domain — words like "habitable" (+2.5), "promising" (+2.0), and "Sun-like" 
+          (+1.0) score highly, while "controversial" (−1.5), "unstable" (−0.5), and "cold" (−0.3) score 
+          negatively. Scores are normalised with a compression function and bucketed into Positive / Neutral / Negative labels.
+        </div>
+        <div class="pills">
+          <span class="pill pill-orange">VADER-style lexicon</span>
+          <span class="pill pill-cyan">compound score [-1, +1]</span>
+          <span class="pill pill-green">Positive ≥ 0.05</span>
+          <span class="pill pill-red">Negative ≤ −0.05</span>
+          <span class="pill pill-gold">Neutral otherwise</span>
+        </div>
+        <div class="code-block" data-label="nlp_pipeline.py"><span class="c-cmt"># Domain-specific sentiment lexicon</span>
+_LEXICON = {
+  <span class="c-str">"habitable"</span>: <span class="c-num">2.5</span>,  <span class="c-str">"promising"</span>: <span class="c-num">2.0</span>,  <span class="c-str">"sun-like"</span>: <span class="c-num">1.0</span>,
+  <span class="c-str">"stable"</span>:   <span class="c-num">0.5</span>,  <span class="c-str">"circular"</span>: <span class="c-num">0.5</span>,  <span class="c-str">"warm"</span>:     <span class="c-num">0.3</span>,
+  <span class="c-str">"controversial"</span>: <span class="c-num">-1.5</span>, <span class="c-str">"unstable"</span>: <span class="c-num">-0.5</span>,
+  <span class="c-str">"cold"</span>: <span class="c-num">-0.3</span>, <span class="c-str">"dwarf"</span>: <span class="c-num">-0.3</span>, <span class="c-str">"elliptical"</span>: <span class="c-num">-0.2</span>
+}
+<span class="c-kw">def</span> <span class="c-fn">_vader_score</span>(text):
+  raw = <span class="c-fn">sum</span>(_LEXICON.<span class="c-fn">get</span>(w, <span class="c-num">0.0</span>) <span class="c-kw">for</span> w <span class="c-kw">in</span> text.<span class="c-fn">lower</span>().<span class="c-fn">split</span>())
+  <span class="c-kw">return</span> <span class="c-fn">max</span>(<span class="c-num">-1.0</span>, <span class="c-fn">min</span>(<span class="c-num">1.0</span>, raw / (<span class="c-num">1</span> + <span class="c-fn">abs</span>(raw) * <span class="c-num">0.1</span>)))</div>
+        <div class="step-stats">
+          <div class="step-stat" style="--step-color: #39ff14"><span class="step-stat-val" style="color:var(--hab)">~80%</span><span class="step-stat-lbl">positive</span></div>
+          <div class="step-stat" style="--step-color: #ffd700"><span class="step-stat-val" style="color:var(--star)">~15%</span><span class="step-stat-lbl">neutral</span></div>
+          <div class="step-stat" style="--step-color: #ff4466"><span class="step-stat-val" style="color:var(--dwarf)">~5%</span><span class="step-stat-lbl">negative</span></div>
+          <div class="step-stat"><span class="step-stat-val">21</span><span class="step-stat-lbl">lexicon terms</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pipeline-connector">
+      <div class="connector-line" style="background: linear-gradient(180deg, #ff6b3588, #39ff1488)">
+        <div class="connector-arrow" style="border-top-color: #39ff14;"></div>
+      </div>
+      <div class="connector-label">orbital params → scorer</div>
+    </div>
+
+    <!-- ── STEP 4 ── -->
+    <div class="step-card" style="--step-color: #39ff14;">
+      <div class="step-number">
+        <div class="step-num-label">04</div>
+        <div class="step-icon">🌍</div>
+        <div class="step-file">nlp_pipeline.py</div>
+      </div>
+      <div class="step-body">
+        <div class="step-header">
+          <div class="step-title">Habitability Classification</div>
+          <span class="step-badge">Step 4 · Rule-based</span>
+        </div>
+        <div class="step-desc">
+          A 9-point rubric evaluates each planet's suitability for life using 5 astronomically 
+          grounded rules. Points are awarded for orbital semi-major axis in the habitable zone, 
+          Sun-like stellar temperature, small planetary mass (rocky body), low orbital eccentricity 
+          (stable seasons), and stable stellar mass. The raw score maps to three classes used 
+          throughout the dashboard.
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <div class="code-block" style="margin-bottom:0" data-label="rubric">
+<span class="c-kw">if</span> <span class="c-num">0.5</span> ≤ orbsmax ≤ <span class="c-num">1.5</span>:  score += <span class="c-num">3</span>  <span class="c-cmt"># hab zone</span>
+<span class="c-kw">if</span> <span class="c-num">4500</span> ≤ st_teff ≤ <span class="c-num">6500</span>: score += <span class="c-num">2</span>  <span class="c-cmt"># sun-like</span>
+<span class="c-kw">if</span> pl_bmassj &lt; <span class="c-num">0.1</span>:        score += <span class="c-num">2</span>  <span class="c-cmt"># rocky</span>
+<span class="c-kw">if</span> pl_orbeccen &lt; <span class="c-num">0.2</span>:      score += <span class="c-num">1</span>  <span class="c-cmt"># stable orbit</span>
+<span class="c-kw">if</span> st_mass &lt; <span class="c-num">1.5</span>:          score += <span class="c-num">1</span>  <span class="c-cmt"># stable star</span></div>
+          <div>
+            <div class="flow-node" style="margin-bottom:10px; border-color: rgba(57,255,20,0.4);">
+              <div class="flow-node-icon">🌱</div>
+              <div class="flow-node-title" style="color:var(--hab)">Score ≥ 6</div>
+              <div class="flow-node-val">Potentially Habitable</div>
+            </div>
+            <div class="flow-node" style="margin-bottom:10px; border-color: rgba(255,215,0,0.3);">
+              <div class="flow-node-icon">🔭</div>
+              <div class="flow-node-title" style="color:var(--star)">Score 3–5</div>
+              <div class="flow-node-val">Marginally Interesting</div>
+            </div>
+            <div class="flow-node" style="border-color: rgba(255,68,102,0.3);">
+              <div class="flow-node-icon">🪨</div>
+              <div class="flow-node-title" style="color:var(--dwarf)">Score &lt; 3</div>
+              <div class="flow-node-val">Uninhabitable</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="insight-callout">
+          <div class="insight-icon">💡</div>
+          <div class="insight-text">
+            <strong>Key insight:</strong> Sentiment score correlates with habitability class — planets 
+            flagged "Potentially Habitable" also produce more positive descriptions because the same 
+            orbital parameters (hab-zone, Sun-like star) trigger positive lexicon hits <em>and</em> 
+            higher rubric scores. This cross-step correlation is clearly visible in the bubble chart.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pipeline-connector">
+      <div class="connector-line" style="background: linear-gradient(180deg, #39ff1488, #ffd70088)">
+        <div class="connector-arrow" style="border-top-color: #ffd700;"></div>
+      </div>
+      <div class="connector-label">description TF-IDF → clusters</div>
+    </div>
+
+    <!-- ── STEP 5 ── -->
+    <div class="step-card" style="--step-color: #ffd700;">
+      <div class="step-number">
+        <div class="step-num-label">05</div>
+        <div class="step-icon">🧬</div>
+        <div class="step-file">nlp_pipeline.py</div>
+      </div>
+      <div class="step-body">
+        <div class="step-header">
+          <div class="step-title">TF-IDF + K-Means Clustering</div>
+          <span class="step-badge">Step 5 · ML</span>
+        </div>
+        <div class="step-desc">
+          The 4,367 generated descriptions are vectorised using TF-IDF (top 500 features, English 
+          stop-words removed), then grouped into <strong style="color:var(--star)">6 planet archetypes</strong> 
+          via K-Means clustering (k-means++, n_init=10, seed=42). Each cluster is labelled by its 
+          centroid's highest-weighted TF-IDF term — producing human-readable archetype names like 
+          "C0:habitable" or "C3:elliptical". If scikit-learn is unavailable, the step is gracefully skipped.
+        </div>
+        <div class="pills">
+          <span class="pill pill-gold">TF-IDF · 500 features</span>
+          <span class="pill pill-gold">K-Means · k=6</span>
+          <span class="pill pill-cyan">k-means++ init</span>
+          <span class="pill pill-purple">sklearn optional</span>
+          <span class="pill pill-orange">graceful fallback</span>
+        </div>
+        <div class="code-block" data-label="nlp_pipeline.py"><span class="c-kw">from</span> sklearn.feature_extraction.text <span class="c-kw">import</span> <span class="c-cls">TfidfVectorizer</span>
+<span class="c-kw">from</span> sklearn.cluster <span class="c-kw">import</span> <span class="c-cls">KMeans</span>
+
+vectorizer = <span class="c-cls">TfidfVectorizer</span>(max_features=<span class="c-num">500</span>, stop_words=<span class="c-str">"english"</span>)
+X  = vectorizer.<span class="c-fn">fit_transform</span>(df[<span class="c-str">"description"</span>])
+km = <span class="c-cls">KMeans</span>(n_clusters=<span class="c-num">6</span>, random_state=<span class="c-num">42</span>, n_init=<span class="c-num">10</span>)
+df[<span class="c-str">"cluster"</span>] = km.<span class="c-fn">fit_predict</span>(X)
+
+<span class="c-cmt"># Auto-label each cluster from its top TF-IDF term</span>
+<span class="c-kw">for</span> cid <span class="c-kw">in</span> <span class="c-fn">range</span>(<span class="c-num">6</span>):
+  top_term = terms[km.cluster_centers_[cid].<span class="c-fn">argsort</span>()[<span class="c-num">-1</span>]]
+  cluster_labels[cid] = <span class="c-fn">f</span><span class="c-str">"C{cid}:{top_term}"</span></div>
+        <div class="step-stats">
+          <div class="step-stat"><span class="step-stat-val">6</span><span class="step-stat-lbl">clusters</span></div>
+          <div class="step-stat"><span class="step-stat-val">500</span><span class="step-stat-lbl">TF-IDF features</span></div>
+          <div class="step-stat"><span class="step-stat-val">10</span><span class="step-stat-lbl">k-means inits</span></div>
+          <div class="step-stat"><span class="step-stat-val">seed 42</span><span class="step-stat-lbl">reproducible</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pipeline-connector">
+      <div class="connector-line" style="background: linear-gradient(180deg, #ffd70088, #00f5ff88)">
+        <div class="connector-arrow" style="border-top-color: #00f5ff;"></div>
+      </div>
+      <div class="connector-label">JSON + CSV → dashboard</div>
+    </div>
+
+    <!-- ── OUTPUT ── -->
+    <div class="step-card" style="--step-color: #c084fc;">
+      <div class="step-number">
+        <div class="step-num-label">→</div>
+        <div class="step-icon">📦</div>
+        <div class="step-file">outputs/</div>
+      </div>
+      <div class="step-body">
+        <div class="step-header">
+          <div class="step-title">Output Generation & Dashboard</div>
+          <span class="step-badge">Final Output</span>
+        </div>
+        <div class="step-desc">
+          The pipeline aggregates all enriched data into a <strong style="color:#c084fc">combined_score</strong> 
+          (40% sentiment + 60% habitability), identifies the Top 10 most promising worlds, computes 
+          word frequencies per sentiment class, and samples 300 planets for the bubble chart. 
+          Everything is serialised to <code style="color:#c084fc; background: rgba(192,132,252,0.1); padding: 1px 6px; border-radius:4px;">planet_data.json</code> 
+          (loaded by the dashboard) and a full <code style="color:#c084fc; background: rgba(192,132,252,0.1); padding: 1px 6px; border-radius:4px;">planet_profiles.csv</code>.
+        </div>
+        <div class="pills">
+          <span class="pill pill-purple">planet_data.json</span>
+          <span class="pill pill-purple">planet_profiles.csv</span>
+          <span class="pill pill-cyan">combined score = 0.4×sent + 0.6×hab</span>
+          <span class="pill pill-orange">top-10 ranking</span>
+          <span class="pill pill-green">word frequency counts</span>
+        </div>
+        <div class="flow-diagram">
+          <div class="flow-node">
+            <div class="flow-node-icon">📊</div>
+            <div class="flow-node-title">9 Charts</div>
+            <div class="flow-node-val">Chart.js visualisations</div>
+          </div>
+          <div class="flow-node">
+            <div class="flow-node-icon">☁️</div>
+            <div class="flow-node-title">Word Clouds</div>
+            <div class="flow-node-val">Pos + Neg, top 22</div>
+          </div>
+          <div class="flow-node">
+            <div class="flow-node-icon">🏅</div>
+            <div class="flow-node-title">Top 10 Table</div>
+            <div class="flow-node-val">Combined score rank</div>
+          </div>
+          <div class="flow-node">
+            <div class="flow-node-icon">🔍</div>
+            <div class="flow-node-title">Live Search</div>
+            <div class="flow-node-val">All 4,367 planets</div>
+          </div>
+          <div class="flow-node">
+            <div class="flow-node-icon">🫧</div>
+            <div class="flow-node-title">Bubble Map</div>
+            <div class="flow-node-val">300-planet sample</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end pipeline-flow -->
+
+  <!-- Key Insights -->
+  <div class="section-header">
+    <div class="section-line"></div>
+    <div class="section-title">🔑 Key NLP Findings</div>
+    <div class="section-line right"></div>
+  </div>
+
+  <div class="arch-grid">
+    <div class="arch-card" style="--accent-color: #39ff14">
+      <div class="arch-card-title">📈 80%+ Positive Descriptions</div>
+      <div class="arch-card-desc" style="color:#9db0cc">Most exoplanets orbit Sun-like stars and appear in multi-planet systems — both positive lexicon triggers — producing a skewed-positive distribution</div>
+    </div>
+    <div class="arch-card" style="--accent-color: var(--dwarf)">
+      <div class="arch-card-title">📡 Imaging Scores Most Negative</div>
+      <div class="arch-card-desc" style="color:#9db0cc">Direct Imaging and Astrometry discoveries tend to be cold, distant, and on highly elliptical orbits — all negative lexicon hits in the VADER scorer</div>
+    </div>
+    <div class="arch-card" style="--accent-color: var(--nova)">
+      <div class="arch-card-title">🔗 Sentiment ↔ Habitability</div>
+      <div class="arch-card-desc" style="color:#9db0cc">Cross-step correlation confirmed — the same orbital features that raise the habitability rubric score also trigger positive VADER lexicon terms independently</div>
+    </div>
+    <div class="arch-card" style="--accent-color: var(--star)">
+      <div class="arch-card-title">🏆 Kepler-87 c Ranked #1</div>
+      <div class="arch-card-desc" style="color:#9db0cc">9/9 habitability rubric score + positive sentiment = combined score of 1.0 — a genuine habitable-zone planet around a G-type star in a multi-planet Kepler system</div>
+    </div>
+  </div>
+
+</div><!-- end page-wrap -->
+
+<footer>
+  EXOPLANET PERSONALITY PROFILER · PIPELINE WALKTHROUGH · DATA CLEANER → TEXT GENERATOR → VADER → HABITABILITY → TF-IDF K-MEANS
+</footer>
+
+<script>
+// ── Starfield (identical to main dashboard) ──
+(function() {
+  const canvas = document.getElementById("starfield");
+  const ctx    = canvas.getContext("2d");
+  let stars    = [];
+  let W, H;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function init() {
+    resize();
+    stars = Array.from({ length: 280 }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.4 + 0.2,
+      a: Math.random(),
+      speed: Math.random() * 0.004 + 0.001,
+      phase: Math.random() * Math.PI * 2,
+    }));
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    stars.forEach(s => {
+      s.phase += s.speed;
+      const alpha = 0.25 + Math.sin(s.phase) * 0.2;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200, 220, 255, ${alpha})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener("resize", resize);
+  init();
+  draw();
+})();
+</script>
+
+</body>
+</html>

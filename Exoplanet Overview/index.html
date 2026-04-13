@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🪐 Exoplanet Personality Profiler</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+<style>
+.tab-nav {
+  position: relative; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; padding: 20px 24px 0;
+  max-width: 1400px; margin: 0 auto;
+}
+.tab-link {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+  text-decoration: none; padding: 10px 28px;
+  border: 1px solid rgba(0,245,255,0.2); color: #8899cc;
+  background: rgba(3,3,24,0.6); transition: all 0.3s;
+}
+.tab-link:first-child { border-radius: 8px 0 0 8px; }
+.tab-link:last-child  { border-radius: 0 8px 8px 0; }
+.tab-link:hover { color: #00f5ff; border-color: rgba(0,245,255,0.5); background: rgba(0,245,255,0.07); }
+.tab-link.active {
+  color: #00000a; background: #00f5ff; border-color: #00f5ff;
+  box-shadow: 0 0 20px rgba(0,245,255,0.4), 0 0 40px rgba(0,245,255,0.15); font-weight: 700;
+}
+</style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+
+<nav class="tab-nav">
+  <a href="index.html" class="tab-link active">🪐 Dashboard</a>
+  <a href="pipeline.html" class="tab-link">🔬 Pipeline</a>
+</nav>
+
+<div class="page-wrap">
+
+  <!-- ── HEADER ── -->
+  <header>
+    <div class="header-badge">NASA Exoplanet Archive · NLP Analysis · 4,367 Confirmed Worlds</div>
+    <h1>Exoplanet<br>Personality Profiler</h1>
+    <p class="subtitle">Generating &amp; Analyzing Descriptive Text from NASA Exoplanet Data</p>
+    <svg class="hero-planet" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="pg" cx="35%" cy="35%">
+          <stop offset="0%" stop-color="#4fc3f7"/>
+          <stop offset="40%" stop-color="#1565c0"/>
+          <stop offset="100%" stop-color="#0a0a2e"/>
+        </radialGradient>
+        <radialGradient id="glowg" cx="50%" cy="50%">
+          <stop offset="60%" stop-color="transparent"/>
+          <stop offset="100%" stop-color="rgba(0,245,255,0.15)"/>
+        </radialGradient>
+      </defs>
+      <circle cx="60" cy="60" r="55" fill="url(#glowg)"/>
+      <circle cx="60" cy="60" r="36" fill="url(#pg)"/>
+      <ellipse cx="60" cy="60" rx="55" ry="12" fill="none" stroke="rgba(0,245,255,0.35)" stroke-width="1.5"/>
+      <circle cx="60" cy="46" r="5" fill="rgba(255,255,255,0.07)"/>
+      <circle cx="72" cy="60" r="8" fill="rgba(255,255,255,0.05)"/>
+    </svg>
+  </header>
+
+  <!-- ── LOADING STATE ── -->
+  <div id="loading-state" class="loading-state">
+    <div class="loading-spinner"></div>
+    <p>Loading planet data…</p>
+  </div>
+
+  <!-- ── MAIN CONTENT (hidden until data loads) ── -->
+  <div id="main-content" style="display:none;">
+
+    <!-- Stat Cards -->
+    <div class="stat-grid" id="stat-grid"></div>
+
+    <!-- ── SENTIMENT ── -->
+    <div class="section-header">
+      <div class="section-line"></div>
+      <div class="section-title">📊 Sentiment Analysis</div>
+      <div class="section-line right"></div>
+    </div>
+
+    <div class="chart-grid-2">
+      <div class="chart-panel">
+        <div class="chart-title"><span>📡</span> Avg Sentiment Score by Discovery Method</div>
+        <div class="chart-wrap"><canvas id="chart-method-sent"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-title"><span>🏷️</span> Sentiment Label Distribution</div>
+        <div class="chart-wrap"><canvas id="chart-sent-dist"></canvas></div>
+        <div class="insight-box" id="sent-insight"></div>
+      </div>
+    </div>
+
+    <!-- Word Clouds -->
+    <div class="chart-grid-2">
+      <div class="chart-panel">
+        <div class="chart-title"><span>✨</span> Word Cloud · Positive Descriptions</div>
+        <div class="wordcloud-wrap" id="wc-pos"></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-title"><span>❄️</span> Word Cloud · Negative Descriptions</div>
+        <div class="wordcloud-wrap" id="wc-neg"></div>
+      </div>
+    </div>
+
+    <!-- ── HABITABILITY ── -->
+    <div class="section-header">
+      <div class="section-line"></div>
+      <div class="section-title">🌍 Habitability &amp; Discovery</div>
+      <div class="section-line right"></div>
+    </div>
+
+    <div class="chart-grid-3">
+      <div class="chart-panel">
+        <div class="chart-title"><span>🌱</span> Habitability Classification</div>
+        <div class="chart-wrap"><canvas id="chart-hab"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-title"><span>🔭</span> Planets by Discovery Method</div>
+        <div class="chart-wrap"><canvas id="chart-disc"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-title"><span>🏆</span> Top Facilities by Avg Sentiment</div>
+        <div class="chart-wrap"><canvas id="chart-fac"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ── BUBBLE ── -->
+    <div class="section-header">
+      <div class="section-line"></div>
+      <div class="section-title">🫧 Mass vs Orbital Period · Bubble Map</div>
+      <div class="section-line right"></div>
+    </div>
+
+    <div class="chart-panel" style="margin-bottom:20px;">
+      <div class="chart-title"><span>🪐</span> Planet Mass (Jup. masses) vs Orbital Period (days) · Bubble size = Sentiment · Color = Habitability</div>
+      <div class="chart-wrap xl"><canvas id="chart-bubble"></canvas></div>
+      <div class="insight-box" id="bubble-insight"></div>
+    </div>
+
+    <!-- ── TOP 10 ── -->
+    <div class="section-header">
+      <div class="section-line"></div>
+      <div class="section-title">🏅 Top 10 Most Promising Exoplanets</div>
+      <div class="section-line right"></div>
+    </div>
+    <div class="top10-panel" id="top10-table"></div>
+
+    <!-- ── SEARCH ── -->
+    <div class="section-header">
+      <div class="section-line"></div>
+      <div class="section-title">🔍 Planet Intelligence Search</div>
+      <div class="section-line right"></div>
+    </div>
+
+    <div class="search-panel">
+      <div class="search-bar-wrap">
+        <span class="search-icon">🔭</span>
+        <input
+          type="text"
+          id="planet-search"
+          placeholder="Search any of the 4,367 exoplanets… e.g. Kepler-87 c"
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <div class="autocomplete-list" id="autocomplete" style="display:none;"></div>
+      </div>
+      <div id="search-results">
+        <div class="no-results">Enter a planet name above to view its full personality profile, sentiment score, and habitability analysis</div>
+      </div>
+    </div>
+
+  </div><!-- end #main-content -->
+</div><!-- end .page-wrap -->
+
+<footer>
+  NASA EXOPLANET ARCHIVE · 4,367 CONFIRMED WORLDS · NLP: TEXT GENERATION + VADER SENTIMENT + HABITABILITY SCORING · CHART.JS
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
